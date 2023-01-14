@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="mapper.BrandMapper">
+
+    <!--
+        数据库表的字段名称 和 实体类的属性名称 不一样 则无法自动封装数据 brandName和brand_name不同，运行后brandName='null'
+        *解决方法1：起别名 as    id, brand_name as brandName, company_name as companyName, ordered, description, status
+            *缺点：每次查询都要定义别名
+                *使用sql片段，实现复用
+                    *缺点：不灵活
+        *方法2：resultMap
+                *1.定义<resultMap>标签
+                *2.在<select>标签中，使用resultMap替换resultType
+    -->
+    <!--<select id="selectAll" resultType="pojo.Brand">
+        select * from brand;
+    </select>-->
+
+    <!--<select id="selectAll" resultType="pojo.Brand">
+        select id, brand_name as brandName, company_name as companyName, ordered, description, status
+        from brand;
+    </select>-->
+    <!--<sql id="brand_column">
+    id, brand_name as brandName, company_name as companyName, ordered, description, status
+    </sql>
+    <select id="selectAll" resultType="pojo.Brand">
+        select
+            <include refid="brand_column"/>
+        from brand;
+    </select>-->
+
+    <!--
+        id:唯一标识
+        type:映射的实体类
+    -->
+    <resultMap id="brandResultMap" type="pojo.Brand">
+        <!--result实现一般字段映射，id实现主键映射-->
+        <result column="brand_name" property="brandName"/>
+        <result column="company_name" property="companyName"/>
+    </resultMap>
+
+
+
+    <select id="selectAll" resultMap="brandResultMap">
+        select *
+        from brand;
+    </select>
+
+    <!--
+        参数占位符：
+            1.#{}  把参数替换为? 防止sql注入          select * from brand where id = ?
+            2.${}  没有把参数替换为? 存在sql注入   select * from brand where id = 1
+            3.使用时机：
+                #{} 用于参数传递
+                ${} 用于表名或列名不固定
+        特殊字符处理(比如<)
+            1.转义字符
+            2.CDATA区 
+    -->
+    <select id="selectById" resultMap="brandResultMap">
+        select *
+        from brand
+        where id = #{id};
+    </select>
+    
+    
+    <!--<select id="selectByCondition" resultMap="brandResultMap">
+        select *
+        from brand
+        where status = #{status} and brand_name like #{brandName} and company_name like #{companyName}; /*like模糊查询*/
+    </select>-->
+
+    <!--动态条件查询 有时候用户不一定都输入三个数据
+        if 条件判断
+            test 条件
+        问题：status没有输入时语句变成where and brand_name ... 出现语法错误
+        解决方法：1.恒等式 where 1=1 and ...
+                2.<where> 替换成 where
+    -->
+    <!--<select id="selectByCondition" resultMap="brandResultMap">
+        select *
+        from brand
+        where
+            <if test="status != null">
+                status = #{status}
+            </if>
+            <if test="brandName != null and brandName != ''">
+                and brand_name like #{brandName}
+            </if>
+            <if test="companyName != null and companyName != ''">
+                and company_name like #{companyName}; /*like模糊查询*/
+            </if>
+    </select>-->
+    <select id="selectByCondition" resultMap="brandResultMap">
+        select *
+        from brand
+        <where>
+            <if test="status != null">
+                status = #{status}
+            </if>
+            <if test="brandName != null and brandName != ''">
+                and brand_name like #{brandName}
+            </if>
+            <if test="companyName != null and companyName != ''">
+                and company_name like #{companyName}; /*like模糊查询*/
+            </if>
+        </where>
+
+    </select>
+
+    <!--
+        单条件动态查询：
+        choose(when,otherwise) 类似于switch(case,default)
+    -->
+    <!--<select id="selectByConditionSingle" resultMap="brandResultMap">
+        select *
+        from brand
+        where
+        <choose>
+            <when test="status != null">
+                status = #{status}
+            </when>
+            <when test="brandName != null and brandName != ''">
+                brand_name like #{brandName}
+            </when>
+            <when test="companyName != null and companyName != ''">
+                company_name like #{companyName}
+            </when>
+            <otherwise> &lt;!&ndash;当用户都没输入时，1=1，展示全部&ndash;&gt;
+                1=1
+            </otherwise>
+        </choose>
+    </select>-->
+
+    <select id="selectByConditionSingle" resultMap="brandResultMap">
+        select *
+        from brand
+        <where>
+            <choose>
+                <when test="status != null">
+                    status = #{status}
+                </when>
+                <when test="brandName != null and brandName != ''">
+                    brand_name like #{brandName}
+                </when>
+                <when test="companyName != null and companyName != ''">
+                    company_name like #{companyName}
+                </when>
+
+            </choose>
+        </where>
+    </select>
+
+    <!--
+        添加
+        useGeneratedKeys="true" keyProperty="id" 将id作为主键，返回这个主键
+    -->
+    <insert id="add" useGeneratedKeys="true" keyProperty="id">
+        insert into brand (brand_name, company_name, ordered, description, status)
+        values (#{brandName},#{companyName},#{ordered},#{description},#{status});
+    </insert>
+
+    <!--
+        修改
+    -->
+    <update id="update">
+        update brand
+        <set>
+            <if test="brandName != null and brandName != ''">
+                brand_name = #{brandName},
+            </if>
+            <if test="companyName != null and companyName != ''">
+                company_name = #{companyName},
+            </if>
+            <if test="ordered != null">
+                ordered = #{ordered},
+            </if>
+            <if test="description != null and description != ''">
+                description = #{description},
+            </if>
+            <if test="status != null">
+                status = #{status}
+            </if>
+        </set>
+        where id = #{id};
+
+    </update>
+
+    <!--
+        删除
+    -->
+    <delete id="deleteById">
+        delete from brand where id = #{id};
+    </delete>
+    <!--
+        delete from brand where id in (?,?,?)
+        使用foreach遍历传入的id数组，默认封装为map集合
+    -->
+    <delete id="deleteByIds">
+        delete from brand where id in
+            <foreach collection="ids" item="id" separator="," open="(" close=")">
+                #{id}
+            </foreach>
+
+    </delete>
+</mapper>
